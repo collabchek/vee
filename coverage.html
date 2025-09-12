@@ -1,0 +1,633 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>vee: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/collabchek/vee/bind.go (97.3%)</option>
+				
+				<option value="file1">github.com/collabchek/vee/render.go (95.7%)</option>
+				
+				<option value="file2">github.com/collabchek/vee/tags.go (97.1%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package vee
+
+import (
+        "fmt"
+        "reflect"
+        "strconv"
+        "time"
+)
+
+// Bind parses HTTP form data and populates the provided struct.
+// The struct pointer v will be populated with form data.
+func Bind(r any, v any) error <span class="cov8" title="1">{
+        // For now, expect r to be url.Values (we'll enhance this later for http.Request)
+        values, ok := r.(map[string][]string)
+        if !ok </span><span class="cov8" title="1">{
+                return fmt.Errorf("vee: expected url.Values or map[string][]string, got %T", r)
+        }</span>
+        
+        <span class="cov8" title="1">val := reflect.ValueOf(v)
+        typ := reflect.TypeOf(v)
+        
+        // Must be pointer to struct
+        if typ.Kind() != reflect.Ptr </span><span class="cov8" title="1">{
+                return fmt.Errorf("vee: expected pointer to struct, got %v", typ.Kind())
+        }</span>
+        
+        <span class="cov8" title="1">val = val.Elem()
+        typ = typ.Elem()
+        
+        if typ.Kind() != reflect.Struct </span><span class="cov8" title="1">{
+                return fmt.Errorf("vee: expected pointer to struct, got pointer to %v", typ.Kind())
+        }</span>
+        
+        <span class="cov8" title="1">for i := 0; i &lt; typ.NumField(); i++ </span><span class="cov8" title="1">{
+                field := typ.Field(i)
+                fieldVal := val.Field(i)
+                
+                // Skip unexported fields
+                if !field.IsExported() </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                
+                // Parse vee tag
+                <span class="cov8" title="1">veeTag := field.Tag.Get("vee")
+                config := parseVeeTag(veeTag, field.Name)
+                
+                // Skip if requested
+                if config.Skip </span><span class="cov8" title="1">{
+                        continue</span>
+                }
+                
+                // Bind based on field type
+                <span class="cov8" title="1">if !fieldVal.CanSet() </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                
+                // Check for specific types first (before generic kind matching)
+                <span class="cov8" title="1">if field.Type == reflect.TypeOf(time.Time{}) </span><span class="cov8" title="1">{
+                        // For time fields, skip if no form data
+                        formValues, exists := values[config.Name]
+                        if !exists || len(formValues) == 0 </span><span class="cov8" title="1">{
+                                continue</span>
+                        }
+                        
+                        <span class="cov8" title="1">formValue := formValues[0]
+                        
+                        // Determine expected format based on type attribute
+                        inputType := "datetime-local" // default
+                        if typeAttr, ok := config.Attributes["type"]; ok </span><span class="cov8" title="1">{
+                                switch typeAttr </span>{
+                                case "date", "datetime-local", "time":<span class="cov8" title="1">
+                                        inputType = typeAttr</span>
+                                }
+                        }
+                        
+                        // Parse based on input type
+                        <span class="cov8" title="1">var timeVal time.Time
+                        var err error
+                        switch inputType </span>{
+                        case "date":<span class="cov8" title="1">
+                                timeVal, err = time.Parse("2006-01-02", formValue)</span>
+                        case "time":<span class="cov8" title="1">
+                                timeVal, err = time.Parse("15:04", formValue)</span>
+                        case "datetime-local":<span class="cov8" title="1">
+                                timeVal, err = time.Parse("2006-01-02T15:04", formValue)</span>
+                        }
+                        
+                        <span class="cov8" title="1">if err == nil </span><span class="cov8" title="1">{
+                                fieldVal.Set(reflect.ValueOf(timeVal))
+                        }</span>
+                        // TODO: Handle parse errors in validation phase
+                        <span class="cov8" title="1">continue</span>
+                }
+                
+                <span class="cov8" title="1">if field.Type == reflect.TypeOf(time.Duration(0)) </span><span class="cov8" title="1">{
+                        // For duration fields, skip if no form data
+                        formValues, exists := values[config.Name]
+                        if !exists || len(formValues) == 0 </span><span class="cov8" title="1">{
+                                continue</span>
+                        }
+                        
+                        <span class="cov8" title="1">formValue := formValues[0]
+                        
+                        // Get units (default to seconds)
+                        units := "s"
+                        if unitsAttr, ok := config.Attributes["units"]; ok </span><span class="cov8" title="1">{
+                                switch unitsAttr </span>{
+                                case "ms", "s", "m", "h":<span class="cov8" title="1">
+                                        units = unitsAttr</span>
+                                }
+                        }
+                        
+                        // Parse the numeric value and multiply by unit constant
+                        <span class="cov8" title="1">if floatVal, err := strconv.ParseFloat(formValue, 64); err == nil </span><span class="cov8" title="1">{
+                                var duration time.Duration
+                                switch units </span>{
+                                case "ms":<span class="cov8" title="1">
+                                        duration = time.Duration(floatVal) * time.Millisecond</span>
+                                case "s":<span class="cov8" title="1">
+                                        duration = time.Duration(floatVal) * time.Second</span>
+                                case "m":<span class="cov8" title="1">
+                                        duration = time.Duration(floatVal) * time.Minute</span>
+                                case "h":<span class="cov8" title="1">
+                                        duration = time.Duration(floatVal) * time.Hour</span>
+                                }
+                                <span class="cov8" title="1">fieldVal.Set(reflect.ValueOf(duration))</span>
+                        }
+                        // TODO: Handle parse errors in validation phase
+                        <span class="cov8" title="1">continue</span>
+                }
+                
+                <span class="cov8" title="1">switch field.Type.Kind() </span>{
+                case reflect.Bool:<span class="cov8" title="1">
+                        // For checkboxes: present in form data = true, absent = false
+                        formValues, exists := values[config.Name]
+                        if exists &amp;&amp; len(formValues) &gt; 0 </span><span class="cov8" title="1">{
+                                fieldVal.SetBool(true)
+                        }</span> else<span class="cov8" title="1"> {
+                                fieldVal.SetBool(false)
+                        }</span>
+                        
+                default:<span class="cov8" title="1">
+                        // For non-boolean fields, skip if no form data
+                        formValues, exists := values[config.Name]
+                        if !exists || len(formValues) == 0 </span><span class="cov8" title="1">{
+                                continue</span>
+                        }
+                        
+                        <span class="cov8" title="1">formValue := formValues[0]
+                        
+                        switch field.Type.Kind() </span>{
+                        case reflect.String:<span class="cov8" title="1">
+                                fieldVal.SetString(formValue)</span>
+                                
+                        case reflect.Int, reflect.Int64:<span class="cov8" title="1">
+                                if intVal, err := strconv.ParseInt(formValue, 10, 64); err == nil </span><span class="cov8" title="1">{
+                                        fieldVal.SetInt(intVal)
+                                }</span>
+                                // TODO: Handle parse errors in validation phase
+                                
+                        case reflect.Float64:<span class="cov8" title="1">
+                                if floatVal, err := strconv.ParseFloat(formValue, 64); err == nil </span><span class="cov8" title="1">{
+                                        fieldVal.SetFloat(floatVal)
+                                }</span>
+                                // TODO: Handle parse errors in validation phase
+                                
+                        }
+                }
+        }
+        
+        <span class="cov8" title="1">return nil</span>
+}</pre>
+		
+		<pre class="file" id="file1" style="display: none">package vee
+
+import (
+        "fmt"
+        "reflect"
+        "strings"
+        "time"
+)
+
+// Render generates HTML form fields from a Go struct.
+// Accepts optional RenderOptions to customize form rendering.
+func Render(v any, opts ...*RenderOptions) (string, error) <span class="cov8" title="1">{
+        var options *RenderOptions
+        if len(opts) &gt; 0 &amp;&amp; opts[0] != nil </span><span class="cov8" title="1">{
+                options = opts[0]
+        }</span> else<span class="cov8" title="1"> {
+                options = &amp;RenderOptions{}
+        }</span>
+        <span class="cov8" title="1">val := reflect.ValueOf(v)
+        typ := reflect.TypeOf(v)
+        
+        // Handle pointer to struct
+        if typ.Kind() == reflect.Ptr </span><span class="cov8" title="1">{
+                val = val.Elem()
+                typ = typ.Elem()
+        }</span>
+        
+        <span class="cov8" title="1">if typ.Kind() != reflect.Struct </span><span class="cov8" title="1">{
+                return "", fmt.Errorf("vee: expected struct, got %v", typ.Kind())
+        }</span>
+        
+        <span class="cov8" title="1">var html strings.Builder
+        
+        // Always wrap in form tag
+        html.WriteString("&lt;form")
+        if options.FormID != "" </span><span class="cov8" title="1">{
+                html.WriteString(fmt.Sprintf(` id="%s"`, escapeHTML(options.FormID)))
+        }</span>
+        <span class="cov8" title="1">if options.FormCSS != "" </span><span class="cov8" title="1">{
+                html.WriteString(fmt.Sprintf(` class="%s"`, escapeHTML(options.FormCSS)))
+        }</span>
+        <span class="cov8" title="1">method := options.FormMethod
+        if method == "" </span><span class="cov8" title="1">{
+                method = "POST"
+        }</span>
+        <span class="cov8" title="1">html.WriteString(fmt.Sprintf(` method="%s"`, method))
+        if options.FormAction != "" </span><span class="cov8" title="1">{
+                html.WriteString(fmt.Sprintf(` action="%s"`, escapeHTML(options.FormAction)))
+        }</span>
+        <span class="cov8" title="1">html.WriteString("&gt;\n")
+        
+        for i := 0; i &lt; typ.NumField(); i++ </span><span class="cov8" title="1">{
+                field := typ.Field(i)
+                fieldVal := val.Field(i)
+                
+                // Skip unexported fields
+                if !field.IsExported() </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                
+                // Parse vee tag
+                <span class="cov8" title="1">veeTag := field.Tag.Get("vee")
+                config := parseVeeTag(veeTag, field.Name)
+                
+                // Skip if requested
+                if config.Skip </span><span class="cov8" title="1">{
+                        continue</span>
+                }
+                
+                // Build CSS classes
+                <span class="cov8" title="1">var cssClass string
+                cssTag := field.Tag.Get("css")
+                if cssTag != "" </span><span class="cov8" title="1">{
+                        cssClass = cssTag
+                }</span> else<span class="cov8" title="1"> if options.DefaultInputCSS != "" </span><span class="cov8" title="1">{
+                        cssClass = options.DefaultInputCSS
+                }</span>
+                
+                // Check for specific types first (before generic kind matching)
+                <span class="cov8" title="1">if field.Type == reflect.TypeOf(time.Time{}) </span><span class="cov8" title="1">{
+                        timeVal := fieldVal.Interface().(time.Time)
+                        
+                        // Determine input type (default to datetime-local)
+                        inputType := "datetime-local"
+                        if typeAttr, ok := config.Attributes["type"]; ok </span><span class="cov8" title="1">{
+                                switch typeAttr </span>{
+                                case "date", "datetime-local", "time":<span class="cov8" title="1">
+                                        inputType = typeAttr</span>
+                                }
+                        }
+                        
+                        <span class="cov8" title="1">html.WriteString(fmt.Sprintf(`&lt;input type="%s"`, inputType))
+                        html.WriteString(fmt.Sprintf(` name="%s"`, config.Name))
+                        
+                        // Format the value based on input type
+                        var value string
+                        if !timeVal.IsZero() </span><span class="cov8" title="1">{
+                                switch inputType </span>{
+                                case "date":<span class="cov8" title="1">
+                                        value = timeVal.Format("2006-01-02")</span>
+                                case "time":<span class="cov8" title="1">
+                                        value = timeVal.Format("15:04")</span>
+                                case "datetime-local":<span class="cov8" title="1">
+                                        value = timeVal.Format("2006-01-02T15:04")</span>
+                                }
+                                <span class="cov8" title="1">html.WriteString(fmt.Sprintf(` value="%s"`, escapeHTML(value)))</span>
+                        }
+                        
+                        // Add min/max attributes
+                        <span class="cov8" title="1">if min, ok := config.Attributes["min"]; ok </span><span class="cov8" title="1">{
+                                html.WriteString(fmt.Sprintf(` min="%s"`, escapeHTML(min)))
+                        }</span>
+                        <span class="cov8" title="1">if max, ok := config.Attributes["max"]; ok </span><span class="cov8" title="1">{
+                                html.WriteString(fmt.Sprintf(` max="%s"`, escapeHTML(max)))
+                        }</span>
+                        
+                        <span class="cov8" title="1">if cssClass != "" </span><span class="cov0" title="0">{
+                                html.WriteString(fmt.Sprintf(` class="%s"`, escapeHTML(cssClass)))
+                        }</span>
+                        <span class="cov8" title="1">html.WriteString("&gt;\n")
+                        continue</span>
+                }
+                
+                <span class="cov8" title="1">if field.Type == reflect.TypeOf(time.Duration(0)) </span><span class="cov8" title="1">{
+                        durationVal := fieldVal.Interface().(time.Duration)
+                        
+                        // Get units (default to seconds)
+                        units := "s"
+                        if unitsAttr, ok := config.Attributes["units"]; ok </span><span class="cov8" title="1">{
+                                switch unitsAttr </span>{
+                                case "ms", "s", "m", "h":<span class="cov8" title="1">
+                                        units = unitsAttr</span>
+                                }
+                        }
+                        
+                        <span class="cov8" title="1">html.WriteString(`&lt;input type="number"`)
+                        html.WriteString(fmt.Sprintf(` name="%s"`, config.Name))
+                        
+                        // Convert duration to specified units and render value
+                        if durationVal != 0 </span><span class="cov8" title="1">{
+                                var value float64
+                                switch units </span>{
+                                case "ms":<span class="cov8" title="1">
+                                        value = float64(durationVal / time.Millisecond)</span>
+                                case "s":<span class="cov8" title="1">
+                                        value = float64(durationVal / time.Second)</span>
+                                case "m":<span class="cov8" title="1">
+                                        value = float64(durationVal / time.Minute)</span>
+                                case "h":<span class="cov8" title="1">
+                                        value = float64(durationVal / time.Hour)</span>
+                                }
+                                <span class="cov8" title="1">html.WriteString(fmt.Sprintf(` value="%g"`, value))</span>
+                        }
+                        
+                        // Add numeric attributes
+                        <span class="cov8" title="1">if min, ok := config.Attributes["min"]; ok </span><span class="cov8" title="1">{
+                                html.WriteString(fmt.Sprintf(` min="%s"`, escapeHTML(min)))
+                        }</span>
+                        <span class="cov8" title="1">if max, ok := config.Attributes["max"]; ok </span><span class="cov8" title="1">{
+                                html.WriteString(fmt.Sprintf(` max="%s"`, escapeHTML(max)))
+                        }</span>
+                        <span class="cov8" title="1">if step, ok := config.Attributes["step"]; ok </span><span class="cov8" title="1">{
+                                html.WriteString(fmt.Sprintf(` step="%s"`, escapeHTML(step)))
+                        }</span>
+                        
+                        <span class="cov8" title="1">if cssClass != "" </span><span class="cov0" title="0">{
+                                html.WriteString(fmt.Sprintf(` class="%s"`, escapeHTML(cssClass)))
+                        }</span>
+                        <span class="cov8" title="1">html.WriteString("&gt;\n")
+                        continue</span>
+                }
+                
+                // Render field based on type
+                <span class="cov8" title="1">switch field.Type.Kind() </span>{
+                case reflect.String:<span class="cov8" title="1">
+                        value := fieldVal.String()
+                        html.WriteString(`&lt;input type="text"`)
+                        html.WriteString(fmt.Sprintf(` name="%s"`, config.Name))
+                        html.WriteString(fmt.Sprintf(` value="%s"`, escapeHTML(value)))
+                        if cssClass != "" </span><span class="cov8" title="1">{
+                                html.WriteString(fmt.Sprintf(` class="%s"`, escapeHTML(cssClass)))
+                        }</span>
+                        <span class="cov8" title="1">html.WriteString("&gt;\n")</span>
+                        
+                case reflect.Int, reflect.Int64:<span class="cov8" title="1">
+                        value := fieldVal.Int()
+                        html.WriteString(`&lt;input type="number"`)
+                        html.WriteString(fmt.Sprintf(` name="%s"`, config.Name))
+                        html.WriteString(fmt.Sprintf(` value="%d"`, value))
+                        
+                        // Add numeric attributes
+                        if min, ok := config.Attributes["min"]; ok </span><span class="cov8" title="1">{
+                                html.WriteString(fmt.Sprintf(` min="%s"`, escapeHTML(min)))
+                        }</span>
+                        <span class="cov8" title="1">if max, ok := config.Attributes["max"]; ok </span><span class="cov8" title="1">{
+                                html.WriteString(fmt.Sprintf(` max="%s"`, escapeHTML(max)))
+                        }</span>
+                        <span class="cov8" title="1">if step, ok := config.Attributes["step"]; ok </span><span class="cov8" title="1">{
+                                html.WriteString(fmt.Sprintf(` step="%s"`, escapeHTML(step)))
+                        }</span>
+                        
+                        <span class="cov8" title="1">if cssClass != "" </span><span class="cov8" title="1">{
+                                html.WriteString(fmt.Sprintf(` class="%s"`, escapeHTML(cssClass)))
+                        }</span>
+                        <span class="cov8" title="1">html.WriteString("&gt;\n")</span>
+                        
+                case reflect.Float64:<span class="cov8" title="1">
+                        value := fieldVal.Float()
+                        html.WriteString(`&lt;input type="number"`)
+                        html.WriteString(fmt.Sprintf(` name="%s"`, config.Name))
+                        html.WriteString(fmt.Sprintf(` value="%g"`, value))
+                        
+                        // Add numeric attributes (step defaults to "any" for floats if not specified)
+                        if min, ok := config.Attributes["min"]; ok </span><span class="cov8" title="1">{
+                                html.WriteString(fmt.Sprintf(` min="%s"`, escapeHTML(min)))
+                        }</span>
+                        <span class="cov8" title="1">if max, ok := config.Attributes["max"]; ok </span><span class="cov0" title="0">{
+                                html.WriteString(fmt.Sprintf(` max="%s"`, escapeHTML(max)))
+                        }</span>
+                        <span class="cov8" title="1">if step, ok := config.Attributes["step"]; ok </span><span class="cov8" title="1">{
+                                html.WriteString(fmt.Sprintf(` step="%s"`, escapeHTML(step)))
+                        }</span> else<span class="cov8" title="1"> {
+                                html.WriteString(` step="any"`) // Default for float64
+                        }</span>
+                        
+                        <span class="cov8" title="1">if cssClass != "" </span><span class="cov0" title="0">{
+                                html.WriteString(fmt.Sprintf(` class="%s"`, escapeHTML(cssClass)))
+                        }</span>
+                        <span class="cov8" title="1">html.WriteString("&gt;\n")</span>
+                        
+                case reflect.Bool:<span class="cov8" title="1">
+                        isChecked := fieldVal.Bool()
+                        html.WriteString(`&lt;input type="checkbox"`)
+                        html.WriteString(fmt.Sprintf(` name="%s"`, config.Name))
+                        html.WriteString(` value="true"`)
+                        if isChecked </span><span class="cov8" title="1">{
+                                html.WriteString(` checked`)
+                        }</span>
+                        
+                        <span class="cov8" title="1">if cssClass != "" </span><span class="cov8" title="1">{
+                                html.WriteString(fmt.Sprintf(` class="%s"`, escapeHTML(cssClass)))
+                        }</span>
+                        <span class="cov8" title="1">html.WriteString("&gt;\n")</span>
+                        
+                default:<span class="cov0" title="0">
+                        // Skip unsupported types
+                        continue</span>
+                }
+        }
+        
+        // Always close form tag
+        <span class="cov8" title="1">html.WriteString("&lt;/form&gt;\n")
+        
+        return html.String(), nil</span>
+}
+
+// escapeHTML escapes HTML characters in attribute values
+func escapeHTML(s string) string <span class="cov8" title="1">{
+        s = strings.ReplaceAll(s, "&amp;", "&amp;amp;")
+        s = strings.ReplaceAll(s, "&lt;", "&amp;lt;")
+        s = strings.ReplaceAll(s, "&gt;", "&amp;gt;")
+        s = strings.ReplaceAll(s, "\"", "&amp;quot;")
+        return s
+}</pre>
+		
+		<pre class="file" id="file2" style="display: none">package vee
+
+import (
+        "strings"
+)
+
+// FieldConfig holds the configuration for a struct field parsed from tags.
+type FieldConfig struct {
+        Name       string            // HTML form field name
+        Skip       bool              // Whether to skip this field
+        Attributes map[string]string // HTML attributes (min, max, step, etc.)
+}
+
+// parseVeeTag parses a "vee" struct tag and extracts the field name and attributes.
+// Supports: 
+//   - vee:"-" to skip field
+//   - vee:"$override_name" to override field name  
+//   - vee:"" to use auto-derived field name
+//   - vee:"min:10,max:100,step:5" for numeric attributes
+func parseVeeTag(tag, fieldName string) FieldConfig <span class="cov8" title="1">{
+        config := FieldConfig{
+                Attributes: make(map[string]string),
+        }
+        
+        if tag == "" </span><span class="cov8" title="1">{
+                config.Name = toLowerSnake(fieldName)
+                return config
+        }</span>
+        
+        <span class="cov8" title="1">if tag == "-" </span><span class="cov8" title="1">{
+                config.Skip = true
+                return config
+        }</span>
+        
+        // Split by comma
+        <span class="cov8" title="1">parts := strings.Split(tag, ",")
+        
+        // Check if first part is name override
+        if strings.HasPrefix(parts[0], "$") </span><span class="cov8" title="1">{
+                config.Name = parts[0][1:] // Remove $ prefix
+                parts = parts[1:]         // Process remaining parts as attributes
+        }</span> else<span class="cov8" title="1"> if parts[0] != "" &amp;&amp; !strings.Contains(parts[0], ":") </span><span class="cov8" title="1">{
+                // First part doesn't contain : so it might be just attributes, auto-derive name
+                config.Name = toLowerSnake(fieldName)
+        }</span> else<span class="cov8" title="1"> {
+                // Auto-derive name
+                config.Name = toLowerSnake(fieldName)
+        }</span>
+        
+        // Process remaining parts as attributes
+        <span class="cov8" title="1">for _, part := range parts </span><span class="cov8" title="1">{
+                part = strings.TrimSpace(part)
+                if part == "" </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                
+                <span class="cov8" title="1">if strings.Contains(part, ":") </span><span class="cov8" title="1">{
+                        kv := strings.SplitN(part, ":", 2)
+                        if len(kv) == 2 </span><span class="cov8" title="1">{
+                                key := strings.TrimSpace(kv[0])
+                                value := strings.TrimSpace(kv[1])
+                                // Strip surrounding single quotes from value
+                                if len(value) &gt;= 2 &amp;&amp; value[0] == '\'' &amp;&amp; value[len(value)-1] == '\'' </span><span class="cov8" title="1">{
+                                        value = value[1 : len(value)-1]
+                                }</span>
+                                <span class="cov8" title="1">config.Attributes[key] = value</span>
+                        }
+                }
+        }
+        
+        <span class="cov8" title="1">return config</span>
+}
+
+// toLowerSnake converts PascalCase to snake_case.
+// Example: "FirstName" -&gt; "first_name"
+func toLowerSnake(s string) string <span class="cov8" title="1">{
+        var result strings.Builder
+        for i, r := range s </span><span class="cov8" title="1">{
+                if i &gt; 0 &amp;&amp; r &gt;= 'A' &amp;&amp; r &lt;= 'Z' </span><span class="cov8" title="1">{
+                        result.WriteByte('_')
+                }</span>
+                <span class="cov8" title="1">if r &gt;= 'A' &amp;&amp; r &lt;= 'Z' </span><span class="cov8" title="1">{
+                        result.WriteRune(r - ('A' - 'a'))
+                }</span> else<span class="cov8" title="1"> {
+                        result.WriteRune(r)
+                }</span>
+        }
+        <span class="cov8" title="1">return result.String()</span>
+}</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
