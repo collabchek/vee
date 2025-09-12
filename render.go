@@ -10,13 +10,13 @@ import (
 
 // Render generates HTML form fields from a Go struct.
 // Accepts optional RenderOptions to customize form rendering.
-func Render(v any, opts ...*RenderOptions) (string, error) {
-	var options *RenderOptions
-	if len(opts) > 0 && opts[0] != nil {
-		options = opts[0]
-	} else {
-		options = &RenderOptions{}
-	}
+func Render(v any, opts ...RenderOption) (string, error) {
+	options := ConsolidateOptions(opts...)
+	// if len(opts) > 0 && opts[0] != nil {
+	// 	options = opts[0]
+	// } else {
+	// 	options = &RenderOption{}
+	// }
 	val := reflect.ValueOf(v)
 	typ := reflect.TypeOf(v)
 
@@ -80,13 +80,16 @@ func Render(v any, opts ...*RenderOptions) (string, error) {
 	if options.FormCSS != "" {
 		html.WriteString(fmt.Sprintf(` class="%s"`, escapeHTML(options.FormCSS)))
 	}
-	method := options.FormMethod
-	if method == "" {
-		method = "POST"
-	}
-	html.WriteString(fmt.Sprintf(` method="%s"`, method))
-	if options.FormAction != "" {
-		html.WriteString(fmt.Sprintf(` action="%s"`, escapeHTML(options.FormAction)))
+	// Skip method and action if we're going to submit the form via Javascript
+	if options.FormAction != "script" {
+		method := options.FormMethod
+		if method == "" {
+			method = "POST"
+		}
+		html.WriteString(fmt.Sprintf(` method="%s"`, method))
+		if options.FormAction != "" {
+			html.WriteString(fmt.Sprintf(` action="%s"`, escapeHTML(options.FormAction)))
+		}
 	}
 	html.WriteString(">\n")
 

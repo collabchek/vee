@@ -13,13 +13,13 @@ func TestRenderWithOptions(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   TestStruct
-		options *RenderOptions
+		options RenderOption
 		want    string
 	}{
 		{
 			name:    "default behavior without options",
 			input:   TestStruct{Name: "John", Email: "john@example.com"},
-			options: nil,
+			options: RenderOption{},
 			want: `<form method="POST">
 <label for="name">Name</label>
 <input type="text" name="name" value="John" id="name">
@@ -31,7 +31,7 @@ func TestRenderWithOptions(t *testing.T) {
 		{
 			name:  "default CSS class for all inputs",
 			input: TestStruct{Name: "John", Email: "john@example.com"},
-			options: &RenderOptions{
+			options: RenderOption{
 				DefaultInputCSS: "form-control",
 			},
 			want: `<form method="POST">
@@ -45,7 +45,7 @@ func TestRenderWithOptions(t *testing.T) {
 		{
 			name:  "form with basic attributes",
 			input: TestStruct{Name: "John", Email: "john@example.com"},
-			options: &RenderOptions{
+			options: RenderOption{
 				FormID:  "user-form",
 				FormCSS: "my-form",
 			},
@@ -60,7 +60,7 @@ func TestRenderWithOptions(t *testing.T) {
 		{
 			name:  "form with custom method and action",
 			input: TestStruct{Name: "John", Email: "john@example.com"},
-			options: &RenderOptions{
+			options: RenderOption{
 				FormMethod: "GET",
 				FormAction: "/submit",
 			},
@@ -75,7 +75,7 @@ func TestRenderWithOptions(t *testing.T) {
 		{
 			name:  "combined options - form attributes, default CSS, and field CSS",
 			input: TestStruct{Name: "John", Email: "john@example.com"},
-			options: &RenderOptions{
+			options: RenderOption{
 				FormID:          "contact-form",
 				FormCSS:         "p-4 border rounded",
 				FormMethod:      "POST",
@@ -93,7 +93,7 @@ func TestRenderWithOptions(t *testing.T) {
 		{
 			name:  "HTML escaping in form attributes",
 			input: TestStruct{Name: "John", Email: "test@example.com"},
-			options: &RenderOptions{
+			options: RenderOption{
 				FormID:     `form"with"quotes`,
 				FormCSS:    `class<with>brackets`,
 				FormAction: `/path?param="value"`,
@@ -129,7 +129,7 @@ func TestCSSTagPrecedence(t *testing.T) {
 	}
 
 	input := TestStruct{WithCSS: "value1", WithoutCSS: "value2"}
-	options := &RenderOptions{DefaultInputCSS: "default-class"}
+	options := RenderOption{DefaultInputCSS: "default-class"}
 
 	got, err := Render(input, options)
 	if err != nil {
@@ -146,5 +146,89 @@ func TestCSSTagPrecedence(t *testing.T) {
 
 	if got != expected {
 		t.Errorf("CSS precedence test failed.\nGot: %q\nWant: %q", got, expected)
+	}
+}
+
+func TestOptionConsolidation(t *testing.T) {
+	type TestStruct struct {
+		options []RenderOption
+	}
+	tests := []struct {
+		name  string
+		input TestStruct
+		want  RenderOption
+	}{
+		{
+			name: "Input CSS styling option properly applied",
+			input: TestStruct{
+				options: []RenderOption{
+					InputCSSOption("a"),
+				},
+			},
+			want: InputCSSOption("a"),
+		},
+		{
+			name: "Form id option properly applied",
+			input: TestStruct{
+				options: []RenderOption{
+					FormIDOption("user-reg"),
+				},
+			},
+			want: FormIDOption("user-reg"),
+		},
+		{
+			name: "Form CSS option properly applied",
+			input: TestStruct{
+				options: []RenderOption{
+					FormCSSOption("a"),
+				},
+			},
+			want: FormCSSOption("a"),
+		},
+		{
+			name: "Form method option properly applied",
+			input: TestStruct{
+				options: []RenderOption{
+					FormMethodOption("PUT"),
+				},
+			},
+			want: FormMethodOption("PUT"),
+		},
+		{
+			name: "Form action option properly applied",
+			input: TestStruct{
+				options: []RenderOption{
+					FormActionOption("/user-registration"),
+				},
+			},
+			want: FormActionOption("/user-registration"),
+		},
+		{
+			name: "Multiple options properly applied",
+			input: TestStruct{
+				options: []RenderOption{
+					FormIDOption("user-reg"),
+					FormMethodOption("POST"),
+				},
+			},
+			want: RenderOption{FormID: "user-reg", FormMethod: "POST"},
+		},
+		{
+			name: "Last value of competing options wins",
+			input: TestStruct{
+				options: []RenderOption{
+					FormMethodOption("POST"),
+					FormMethodOption("PUT"),
+					FormMethodOption("GET"),
+				},
+			},
+			want: RenderOption{FormMethod: "GET"},
+		},
+	}
+	for _, tt := range tests {
+		result := ConsolidateOptions(tt.input.options...)
+		if !(*result).IsEqual(tt.want) {
+			t.Errorf("Option consolidation test '%s' failed. Got %q, wanted %q\n", tt.name, *result, tt.want)
+		}
 	}
 }
