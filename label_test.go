@@ -45,6 +45,39 @@ func TestLabelGeneration(t *testing.T) {
 `,
 		},
 		{
+			name: "default labels generated for all field types using custom css",
+			input: struct {
+				Name      string `labelCss:"bg-gray-200 dark:bg-gray-800"`
+				Age       int
+				Price     float64
+				Active    bool
+				CreatedAt time.Time
+				Timeout   time.Duration
+			}{
+				Name:      "John",
+				Age:       25,
+				Price:     19.99,
+				Active:    true,
+				CreatedAt: time.Date(2023, 12, 25, 15, 30, 0, 0, time.UTC),
+				Timeout:   30 * time.Second,
+			},
+			want: `<form method="POST">
+<label for="name" class="bg-gray-200 dark:bg-gray-800">Name</label>
+<input type="text" name="name" value="John" id="name">
+<label for="age">Age</label>
+<input type="number" name="age" value="25" id="age">
+<label for="price">Price</label>
+<input type="number" name="price" value="19.99" step="any" id="price">
+<label for="active">Active</label>
+<input type="checkbox" name="active" value="true" checked id="active">
+<label for="created_at">Created At</label>
+<input type="datetime-local" name="created_at" value="2023-12-25T15:30" id="created_at">
+<label for="timeout">Timeout</label>
+<input type="number" name="timeout" value="30" id="timeout">
+</form>
+`,
+		},
+		{
 			name: "custom labels override default field names",
 			input: struct {
 				FirstName string `vee:"label:'Full Name'"`
@@ -62,11 +95,47 @@ func TestLabelGeneration(t *testing.T) {
 `,
 		},
 		{
+			name: "custom labels override default field names and use custom css",
+			input: struct {
+				FirstName string `vee:"label:'Full Name'" labelCss:"bg-gray-200 dark:bg-gray-800"`
+				Email     string `vee:"type:'email',label:'Email Address'"`
+			}{
+				FirstName: "John",
+				Email:     "john@example.com",
+			},
+			want: `<form method="POST">
+<label for="first_name" class="bg-gray-200 dark:bg-gray-800">Full Name</label>
+<input type="text" name="first_name" value="John" id="first_name">
+<label for="email">Email Address</label>
+<input type="email" name="email" value="john@example.com" id="email">
+</form>
+`,
+		},
+		{
 			name: "nolabel attribute skips label generation",
 			input: struct {
 				Name     string `vee:"label:'User Name'"`
 				Password string `vee:"type:'password',nolabel"`
 				Email    string `vee:"nolabel"`
+			}{
+				Name:     "John",
+				Password: "secret",
+				Email:    "john@example.com",
+			},
+			want: `<form method="POST">
+<label for="name">User Name</label>
+<input type="text" name="name" value="John" id="name">
+<input type="password" name="password" value="secret" id="password">
+<input type="text" name="email" value="john@example.com" id="email">
+</form>
+`,
+		},
+		{
+			name: "nolabel attribute skips label generation including custom css",
+			input: struct {
+				Name     string `vee:"label:'User Name'"`
+				Password string `vee:"type:'password',nolabel"`
+				Email    string `vee:"nolabel" labelCss:"bg-gray-200"`
 			}{
 				Name:     "John",
 				Password: "secret",

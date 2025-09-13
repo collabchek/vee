@@ -10,7 +10,7 @@ func TestFormRendering(t *testing.T) {
 		Username string
 		Password string `vee:"type:password"`
 	}
-	noActionMethod, err := Render(&Demo{}, FormActionOption("script"))
+	noActionMethod, err := Render(&Demo{}, FormActionScriptOption())
 	if err != nil {
 		t.Errorf("Expected nil error, got %q", err)
 	}

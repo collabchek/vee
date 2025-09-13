@@ -5,6 +5,9 @@ type RenderOption struct {
 	// DefaultInputCSS sets default CSS classes for all input elements
 	DefaultInputCSS string
 
+	// DefaultLabelCSS sets default CSS classes for all input element labels
+	DefaultLabelCSS string
+
 	// FormID sets the HTML id attribute for the form wrapper
 	FormID string
 
@@ -18,9 +21,17 @@ type RenderOption struct {
 	FormAction string
 }
 
+const scriptAction = "script"
+
 func InputCSSOption(css string) RenderOption {
 	return RenderOption{
 		DefaultInputCSS: css,
+	}
+}
+
+func LabelCSSOption(css string) RenderOption {
+	return RenderOption{
+		DefaultLabelCSS: css,
 	}
 }
 
@@ -48,8 +59,13 @@ func FormActionOption(action string) RenderOption {
 	}
 }
 
+func FormActionScriptOption() RenderOption {
+	return FormActionOption(scriptAction)
+}
+
 func (option RenderOption) IsEqual(other RenderOption) bool {
 	return option.DefaultInputCSS == other.DefaultInputCSS &&
+		option.DefaultLabelCSS == other.DefaultLabelCSS &&
 		option.FormAction == other.FormAction &&
 		option.FormCSS == other.FormCSS &&
 		option.FormID == other.FormID &&
@@ -59,6 +75,9 @@ func (option RenderOption) IsEqual(other RenderOption) bool {
 func (option *RenderOption) apply(other RenderOption) {
 	if other.DefaultInputCSS != "" {
 		option.DefaultInputCSS = other.DefaultInputCSS
+	}
+	if other.DefaultLabelCSS != "" {
+		option.DefaultLabelCSS = other.DefaultLabelCSS
 	}
 	if other.FormID != "" {
 		option.FormID = other.FormID
