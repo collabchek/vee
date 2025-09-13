@@ -571,10 +571,77 @@ html, err := vee.Render(User{
     vee.LabelCSSOption("block font-medium text-gray-700 mb-1"),
 )
 
-// Bind form data
+// Bind form data from HTTP request (recommended)
 var user User
-err := vee.Bind(r, &user)
+err := vee.BindRequest(r, &user) // r is *http.Request
+
+// Or bind from form data directly
+err = vee.Bind(r.Form, &user)           // url.Values
+err = vee.Bind(formData, &user)         // map[string][]string
 ```
+
+## Form Data Binding
+
+vee provides two functions for binding HTTP form data to structs:
+
+### BindRequest (Recommended)
+
+```go
+func BindRequest(r *http.Request, v any) error
+```
+
+**Most convenient approach** - automatically handles form parsing:
+
+```go
+// In your HTTP handler
+func handleRegistration(w http.ResponseWriter, r *http.Request) {
+    var registration AccountRegistration
+
+    err := vee.BindRequest(r, &registration)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    // Use populated registration struct...
+}
+```
+
+**Features:**
+- Automatically calls `r.ParseForm()`
+- Handles both GET query parameters and POST form data
+- Returns parsing errors if form parsing fails
+- Supports all vee field types and validation
+
+### Bind (Direct)
+
+```go
+func Bind(formData any, v any) error
+```
+
+**Lower-level approach** for direct form data binding:
+
+```go
+// Manual form parsing
+if err := r.ParseForm(); err != nil {
+    return err
+}
+
+var registration AccountRegistration
+
+// Both work:
+err := vee.Bind(r.Form, &registration)      // url.Values
+err := vee.Bind(formData, &registration)    // map[string][]string
+```
+
+**Accepts:**
+- `url.Values` (from `r.Form`, `r.PostForm`, or `r.URL.Query()`)
+- `map[string][]string` (custom form data)
+
+**Use Cases:**
+- Custom form data processing
+- Testing with mock data
+- Integration with other form parsing libraries
 
 ## Implementation Notes
 
