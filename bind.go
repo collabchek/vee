@@ -2,18 +2,34 @@ package vee
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// Bind parses HTTP form data and populates the provided struct.
+// BindRequest parses HTTP form data and populates the provided struct.
+// It automatically calls ParseForm() and handles both GET and POST form data.
+func BindRequest(r *http.Request, v any) error {
+	if err := r.ParseForm(); err != nil {
+		return fmt.Errorf("vee: failed to parse form: %w", err)
+	}
+	return Bind(map[string][]string(r.Form), v)
+}
+
+// Bind parses form data and populates the provided struct.
 // The struct pointer v will be populated with form data.
 func Bind(r any, v any) error {
-	// For now, expect r to be url.Values (we'll enhance this later for http.Request)
-	values, ok := r.(map[string][]string)
-	if !ok {
+	// Accept both url.Values and map[string][]string
+	var values map[string][]string
+	switch formData := r.(type) {
+	case url.Values:
+		values = map[string][]string(formData)
+	case map[string][]string:
+		values = formData
+	default:
 		return fmt.Errorf("vee: expected url.Values or map[string][]string, got %T", r)
 	}
 
