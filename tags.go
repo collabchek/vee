@@ -71,12 +71,12 @@ func parseVeeTag(tag, fieldName string) FieldConfig {
 			}
 		} else {
 			// Check for special boolean attributes
-			if part == "nolabel" {
+			switch part {
+			case "nolabel":
 				config.NoLabel = true
-			} else if part == "hidden" {
+			case "hidden":
 				config.Hidden = true
-			} else {
-				// Boolean attribute (e.g., required, readonly, disabled)
+			default:
 				config.Attributes[part] = ""
 			}
 		}

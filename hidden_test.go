@@ -8,18 +8,18 @@ import (
 
 func TestHiddenFieldRendering(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    any
-		expected []string
+		name        string
+		input       any
+		expected    []string
 		notExpected []string
 	}{
 		{
 			name: "hidden string field",
 			input: struct {
-				Name   string `vee:"hidden"`
+				Name    string `vee:"hidden"`
 				Visible string
 			}{
-				Name:   "secret",
+				Name:    "secret",
 				Visible: "public",
 			},
 			expected: []string{
@@ -34,19 +34,19 @@ func TestHiddenFieldRendering(t *testing.T) {
 		{
 			name: "hidden vs nolabel distinction",
 			input: struct {
-				Hidden   string `vee:"hidden"`
-				NoLabel  string `vee:"nolabel"`
-				Normal   string
+				Hidden  string `vee:"hidden"`
+				NoLabel string `vee:"nolabel"`
+				Normal  string
 			}{
 				Hidden:  "secret",
 				NoLabel: "unlabeled",
 				Normal:  "labeled",
 			},
 			expected: []string{
-				`<input type="hidden" name="hidden" value="secret"`,      // Hidden field
-				`<input type="text" name="no_label" value="unlabeled"`,  // NoLabel field (text input)
-				`<label for="normal">Normal</label>`,                    // Normal field has label
-				`<input type="text" name="normal" value="labeled"`,      // Normal field
+				`<input type="hidden" name="hidden" value="secret"`,    // Hidden field
+				`<input type="text" name="no_label" value="unlabeled"`, // NoLabel field (text input)
+				`<label for="normal">Normal</label>`,                   // Normal field has label
+				`<input type="text" name="normal" value="labeled"`,     // Normal field
 			},
 			notExpected: []string{
 				`<label for="hidden">Hidden</label>`,     // No label for hidden
@@ -63,7 +63,6 @@ func TestHiddenFieldRendering(t *testing.T) {
 			expected: []string{
 				`<input type="hidden" name="phase" value="3"`,
 				`id="phase_id"`,
-				`class="hidden-field"`,
 				`required`, // Required still works for validation
 			},
 			notExpected: []string{
@@ -73,11 +72,11 @@ func TestHiddenFieldRendering(t *testing.T) {
 		{
 			name: "hidden fields with different data types",
 			input: struct {
-				ID       int           `vee:"hidden"`
-				Score    float64       `vee:"hidden"`
-				Active   bool          `vee:"hidden"`
-				Created  time.Time     `vee:"hidden"`
-				Timeout  time.Duration `vee:"hidden"`
+				ID      int           `vee:"hidden"`
+				Score   float64       `vee:"hidden"`
+				Active  bool          `vee:"hidden"`
+				Created time.Time     `vee:"hidden"`
+				Timeout time.Duration `vee:"hidden"`
 			}{
 				ID:      42,
 				Score:   3.14,

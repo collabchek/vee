@@ -202,6 +202,25 @@ func TestMultiValueRendering(t *testing.T) {
 `,
 		},
 		{
+			name: "single select dropdown with custom label css",
+			input: struct {
+				ColorChoices []string
+				ColorChosen  int `vee:"type:'select'" labelCss:"bg-gray-200"`
+			}{
+				ColorChoices: []string{"Red", "Blue", "Green"},
+				ColorChosen:  1, // "Blue" selected
+			},
+			want: `<form method="POST">
+<label for="color_chosen" class="bg-gray-200">Color Chosen</label>
+<select name="color_chosen" id="color_chosen">
+<option value="0">Red</option>
+<option value="1" selected>Blue</option>
+<option value="2">Green</option>
+</select>
+</form>
+`,
+		},
+		{
 			name: "multi-select dropdown",
 			input: struct {
 				SkillChoices []string
@@ -212,6 +231,25 @@ func TestMultiValueRendering(t *testing.T) {
 			},
 			want: `<form method="POST">
 <label for="skill_chosen">Skill Chosen</label>
+<select name="skill_chosen" multiple id="skill_chosen">
+<option value="0" selected>Go</option>
+<option value="1">JavaScript</option>
+<option value="2" selected>Python</option>
+</select>
+</form>
+`,
+		},
+		{
+			name: "multi-select dropdown with custom label css",
+			input: struct {
+				SkillChoices []string
+				SkillChosen  []int `vee:"type:'select',multiple" labelCss:"bg-gray-200"`
+			}{
+				SkillChoices: []string{"Go", "JavaScript", "Python"},
+				SkillChosen:  []int{0, 2}, // "Go" and "Python" selected
+			},
+			want: `<form method="POST">
+<label for="skill_chosen" class="bg-gray-200">Skill Chosen</label>
 <select name="skill_chosen" multiple id="skill_chosen">
 <option value="0" selected>Go</option>
 <option value="1">JavaScript</option>
@@ -239,6 +277,24 @@ func TestMultiValueRendering(t *testing.T) {
 `,
 		},
 		{
+			name: "radio button group with custom label css",
+			input: struct {
+				SizeChoices []string
+				SizeChosen  int `vee:"type:'radio'" labelCss:"bg-gray-200"`
+			}{
+				SizeChoices: []string{"Small", "Medium", "Large"},
+				SizeChosen:  1, // "Medium" selected
+			},
+			want: `<form method="POST">
+<fieldset><legend class="bg-gray-200">Size Chosen</legend>
+<input type="radio" name="size_chosen" value="0" id="size_chosen_0"><label for="size_chosen_0">Small</label>
+<input type="radio" name="size_chosen" value="1" checked id="size_chosen_1"><label for="size_chosen_1">Medium</label>
+<input type="radio" name="size_chosen" value="2" id="size_chosen_2"><label for="size_chosen_2">Large</label>
+</fieldset>
+</form>
+`,
+		},
+		{
 			name: "checkbox group",
 			input: struct {
 				FeatureChoices []string
@@ -249,6 +305,24 @@ func TestMultiValueRendering(t *testing.T) {
 			},
 			want: `<form method="POST">
 <fieldset><legend>Feature Chosen</legend>
+<input type="checkbox" name="feature_chosen" value="0" checked id="feature_chosen_0"><label for="feature_chosen_0">WiFi</label>
+<input type="checkbox" name="feature_chosen" value="1" id="feature_chosen_1"><label for="feature_chosen_1">Bluetooth</label>
+<input type="checkbox" name="feature_chosen" value="2" checked id="feature_chosen_2"><label for="feature_chosen_2">GPS</label>
+</fieldset>
+</form>
+`,
+		},
+		{
+			name: "checkbox group with custom label css",
+			input: struct {
+				FeatureChoices []string
+				FeatureChosen  []int `vee:"type:'checkbox'" labelCss:"bg-gray-200"`
+			}{
+				FeatureChoices: []string{"WiFi", "Bluetooth", "GPS"},
+				FeatureChosen:  []int{0, 2}, // "WiFi" and "GPS" selected
+			},
+			want: `<form method="POST">
+<fieldset><legend class="bg-gray-200">Feature Chosen</legend>
 <input type="checkbox" name="feature_chosen" value="0" checked id="feature_chosen_0"><label for="feature_chosen_0">WiFi</label>
 <input type="checkbox" name="feature_chosen" value="1" id="feature_chosen_1"><label for="feature_chosen_1">Bluetooth</label>
 <input type="checkbox" name="feature_chosen" value="2" checked id="feature_chosen_2"><label for="feature_chosen_2">GPS</label>
@@ -275,6 +349,32 @@ func TestMultiValueRendering(t *testing.T) {
 <label for="email">Email</label>
 <input type="text" name="email" value="john@example.com" id="email">
 <label for="color_chosen">Color Chosen</label>
+<select name="color_chosen" id="color_chosen">
+<option value="0" selected>Red</option>
+<option value="1">Blue</option>
+</select>
+</form>
+`,
+		},
+		{
+			name: "mixed regular and multi-value fields with custom label css",
+			input: struct {
+				Name         string
+				Email        string
+				ColorChoices []string
+				ColorChosen  int `vee:"type:'select'" labelCss:"bg-gray-200"`
+			}{
+				Name:         "John",
+				Email:        "john@example.com",
+				ColorChoices: []string{"Red", "Blue"},
+				ColorChosen:  0,
+			},
+			want: `<form method="POST">
+<label for="name">Name</label>
+<input type="text" name="name" value="John" id="name">
+<label for="email">Email</label>
+<input type="text" name="email" value="john@example.com" id="email">
+<label for="color_chosen" class="bg-gray-200">Color Chosen</label>
 <select name="color_chosen" id="color_chosen">
 <option value="0" selected>Red</option>
 <option value="1">Blue</option>

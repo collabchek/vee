@@ -391,6 +391,11 @@ Labels are properly associated with inputs using the `for` attribute:
 Name string `vee:"label:'Full Name'"` 
 ```
 
+**Custom Label CSS:**
+```go
+Name string `vee:"required" css:"border-2 border-gray-300 rounded px-3 py-2" labelCss:"font-bold"`
+```
+
 **Skip Label Generation:**
 ```go
 Password string `vee:"type:'password',nolabel"`
@@ -434,6 +439,104 @@ type User struct {
 }
 ```
 
+## Rendering
+
+### Basic Rendering
+
+```go
+// Simple rendering - generates form HTML from struct
+html, err := vee.Render(user)
+```
+
+### Render Options
+
+vee provides flexible rendering options through the `RenderOption` type and helper functions:
+
+#### Form Configuration
+
+**Form Method and Action:**
+```go
+html, err := vee.Render(user, 
+    vee.FormMethodOption("POST"),
+    vee.FormActionOption("/submit-user"),
+)
+```
+
+**Client-Side JavaScript Forms:**
+For forms intended for client-side JavaScript handling, use `FormActionScriptOption()`:
+```go
+html, err := vee.Render(user, vee.FormActionScriptOption())
+// Generates: <form> (no method or action attributes)
+```
+
+This creates a "pure" form by omitting both `method` and `action` attributes, preventing the browser from navigating away when the form is submitted. This is ideal for:
+- AJAX form submissions
+- Single-page applications (SPAs) 
+- Client-side form validation and processing
+- Progressive web apps
+
+The form relies entirely on JavaScript event handlers (like `onsubmit`) for processing.
+
+**Form ID and CSS:**
+```go
+html, err := vee.Render(user,
+    vee.FormIDOption("user-form"),
+    vee.FormCSSOption("max-w-md mx-auto p-6 bg-white rounded shadow"),
+)
+```
+
+#### Default CSS Styling
+
+Apply default CSS classes to all inputs and labels:
+
+```go
+html, err := vee.Render(user,
+    vee.InputCSSOption("border border-gray-300 rounded px-3 py-2 w-full"),
+    vee.LabelCSSOption("block text-sm font-medium text-gray-700 mb-1"),
+)
+```
+
+#### Combining Options
+
+Multiple render options can be combined:
+
+```go
+html, err := vee.Render(user,
+    vee.FormIDOption("registration-form"),
+    vee.FormMethodOption("POST"),
+    vee.FormActionOption("/register"),
+    vee.FormCSSOption("space-y-4"),
+    vee.InputCSSOption("border border-gray-300 rounded-md px-3 py-2"),
+    vee.LabelCSSOption("block text-sm font-medium mb-1"),
+)
+```
+
+#### Option Priority
+
+Field-specific CSS tags override default options:
+
+```go
+type User struct {
+    Name  string `css:"border-red-500"`  // Overrides InputCSSOption
+    Email string                         // Uses InputCSSOption
+}
+
+html, err := vee.Render(user, vee.InputCSSOption("border-gray-300"))
+// Name field gets "border-red-500", Email field gets "border-gray-300"
+```
+
+### Render Option Reference
+
+| Function | Purpose | Default |
+|----------|---------|---------|
+| `FormMethodOption(method)` | Sets form HTTP method | "POST" |
+| `FormActionOption(action)` | Sets form action URL | "" |
+| `FormActionScriptOption()` | Sets form action to "script" for JS handling | - |
+| `FormIDOption(id)` | Sets form HTML id | "" |
+| `FormCSSOption(css)` | Sets form CSS classes | "" |
+| `InputCSSOption(css)` | Default CSS for all inputs | "" |
+| `LabelCSSOption(css)` | Default CSS for all labels | "" |
+
 ## Example Usage
 
 ```go
@@ -451,11 +554,22 @@ type User struct {
     ColorChosen  int        `vee:"type:'select',label:'Favorite Color'"`
 }
 
-// Render HTML form
+// Basic rendering
 html, err := vee.Render(User{
     ColorChoices: []string{"Red", "Blue", "Green"},
     ColorChosen:  1, // "Blue" selected
 })
+
+// Styled rendering with options
+html, err := vee.Render(User{
+    ColorChoices: []string{"Red", "Blue", "Green"},
+    ColorChosen:  1,
+}, 
+    vee.FormIDOption("user-form"),
+    vee.FormActionOption("/users"),
+    vee.InputCSSOption("border border-gray-300 rounded px-3 py-2"),
+    vee.LabelCSSOption("block font-medium text-gray-700 mb-1"),
+)
 
 // Bind form data
 var user User

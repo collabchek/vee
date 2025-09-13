@@ -81,7 +81,7 @@ func Render(v any, opts ...RenderOption) (string, error) {
 		html.WriteString(fmt.Sprintf(` class="%s"`, escapeHTML(options.FormCSS)))
 	}
 	// Skip method and action if we're going to submit the form via Javascript
-	if options.FormAction != "script" {
+	if options.FormAction != scriptAction {
 		method := options.FormMethod
 		if method == "" {
 			method = "POST"
@@ -120,6 +120,14 @@ func Render(v any, opts ...RenderOption) (string, error) {
 			cssClass = options.DefaultInputCSS
 		}
 
+		var labelCssClass string
+		labelCssTag := field.Tag.Get("labelCss")
+		if labelCssTag != "" {
+			labelCssClass = labelCssTag
+		} else if options.DefaultLabelCSS != "" {
+			labelCssClass = options.DefaultLabelCSS
+		}
+
 		// Skip Choices fields (they're not rendered, only used for Chosen fields)
 		if strings.HasSuffix(field.Name, "Choices") {
 			continue
@@ -129,7 +137,7 @@ func Render(v any, opts ...RenderOption) (string, error) {
 		if strings.HasSuffix(field.Name, "Chosen") {
 			baseName := strings.TrimSuffix(field.Name, "Chosen")
 			if pair, exists := choicesChosenPairs[baseName]; exists {
-				err := renderMultiValueField(&html, pair, config, cssClass)
+				err := renderMultiValueField(&html, pair, config, cssClass, labelCssClass)
 				if err != nil {
 					return "", err
 				}
@@ -139,7 +147,7 @@ func Render(v any, opts ...RenderOption) (string, error) {
 
 		// Handle hidden fields early - they override normal rendering
 		if config.Hidden {
-			err := renderHiddenField(&html, field, fieldVal, config, cssClass)
+			err := renderHiddenField(&html, field, fieldVal, config)
 			if err != nil {
 				return "", err
 			}
@@ -168,7 +176,7 @@ func Render(v any, opts ...RenderOption) (string, error) {
 			timeVal := actualVal.Interface().(time.Time)
 
 			// Render label first
-			renderLabel(&html, config, field.Name)
+			renderLabel(&html, config, field.Name, labelCssClass)
 
 			// Determine input type (default to datetime-local)
 			inputType := "datetime-local"
@@ -222,7 +230,7 @@ func Render(v any, opts ...RenderOption) (string, error) {
 			durationVal := actualVal.Interface().(time.Duration)
 
 			// Render label first
-			renderLabel(&html, config, field.Name)
+			renderLabel(&html, config, field.Name, labelCssClass)
 
 			// Get units (default to seconds)
 			units := "s"
@@ -281,7 +289,7 @@ func Render(v any, opts ...RenderOption) (string, error) {
 			value := actualVal.String()
 
 			// Render label first
-			renderLabel(&html, config, field.Name)
+			renderLabel(&html, config, field.Name, labelCssClass)
 
 			// Determine input type (default to text, but allow override)
 			inputType := "text"
@@ -310,7 +318,7 @@ func Render(v any, opts ...RenderOption) (string, error) {
 			value := actualVal.Int()
 
 			// Render label first
-			renderLabel(&html, config, field.Name)
+			renderLabel(&html, config, field.Name, labelCssClass)
 
 			html.WriteString(`<input type="number"`)
 			html.WriteString(fmt.Sprintf(` name="%s"`, config.Name))
@@ -341,7 +349,7 @@ func Render(v any, opts ...RenderOption) (string, error) {
 			value := actualVal.Float()
 
 			// Render label first
-			renderLabel(&html, config, field.Name)
+			renderLabel(&html, config, field.Name, labelCssClass)
 
 			html.WriteString(`<input type="number"`)
 			html.WriteString(fmt.Sprintf(` name="%s"`, config.Name))
@@ -374,7 +382,7 @@ func Render(v any, opts ...RenderOption) (string, error) {
 			isChecked := actualVal.Bool()
 
 			// Render label first
-			renderLabel(&html, config, field.Name)
+			renderLabel(&html, config, field.Name, labelCssClass)
 
 			html.WriteString(`<input type="checkbox"`)
 			html.WriteString(fmt.Sprintf(` name="%s"`, config.Name))
@@ -507,7 +515,7 @@ type ChoicesChosenPair struct {
 }
 
 // renderMultiValueField renders a Chosen field as select, radio, or checkbox group
-func renderMultiValueField(html *strings.Builder, pair ChoicesChosenPair, config FieldConfig, cssClass string) error {
+func renderMultiValueField(html *strings.Builder, pair ChoicesChosenPair, config FieldConfig, cssClass, labelCssClass string) error {
 	// Determine the input type from attributes (defaults to select)
 	inputType := "select"
 	if typeAttr, ok := config.Attributes["type"]; ok {
@@ -529,23 +537,23 @@ func renderMultiValueField(html *strings.Builder, pair ChoicesChosenPair, config
 
 	switch inputType {
 	case "select":
-		return renderSelectField(html, pair, config, cssClass, selectedIndices)
+		return renderSelectField(html, pair, config, cssClass, labelCssClass, selectedIndices)
 	case "radio":
 		if pair.IsMultiSelect {
 			return fmt.Errorf("vee: radio buttons cannot be used with multi-select field '%s'", pair.ChosenField.Name)
 		}
-		return renderRadioField(html, pair, config, cssClass, selectedIndices[0])
+		return renderRadioField(html, pair, config, cssClass, labelCssClass, selectedIndices[0])
 	case "checkbox":
-		return renderCheckboxField(html, pair, config, cssClass, selectedIndices)
+		return renderCheckboxField(html, pair, config, cssClass, labelCssClass, selectedIndices)
 	}
 
 	return nil
 }
 
 // renderSelectField renders a select element
-func renderSelectField(html *strings.Builder, pair ChoicesChosenPair, config FieldConfig, cssClass string, selectedIndices []int) error {
+func renderSelectField(html *strings.Builder, pair ChoicesChosenPair, config FieldConfig, cssClass, labelCssClass string, selectedIndices []int) error {
 	// Render label first
-	renderLabel(html, config, pair.ChosenField.Name)
+	renderLabel(html, config, pair.ChosenField.Name, labelCssClass)
 
 	html.WriteString("<select")
 	html.WriteString(fmt.Sprintf(` name="%s"`, config.Name))
@@ -584,12 +592,15 @@ func renderSelectField(html *strings.Builder, pair ChoicesChosenPair, config Fie
 }
 
 // renderRadioField renders a radio button group
-func renderRadioField(html *strings.Builder, pair ChoicesChosenPair, config FieldConfig, cssClass string, selectedIndex int) error {
+func renderRadioField(html *strings.Builder, pair ChoicesChosenPair, config FieldConfig, cssClass, labelCssClass string, selectedIndex int) error {
 	// Render group label first (if not disabled)
 	if !config.NoLabel {
 		labelText := generateLabel(config, pair.ChosenField.Name)
-		html.WriteString(fmt.Sprintf(`<fieldset><legend>%s</legend>`, escapeHTML(labelText)))
-		html.WriteString("\n")
+		html.WriteString(`<fieldset><legend`)
+		if labelCssClass != "" {
+			html.WriteString(fmt.Sprintf(` class="%s"`, labelCssClass))
+		}
+		html.WriteString(fmt.Sprintf(">%s</legend>\n", escapeHTML(labelText)))
 	}
 
 	for i := 0; i < pair.ChoicesValue.Len(); i++ {
@@ -637,12 +648,15 @@ func renderRadioField(html *strings.Builder, pair ChoicesChosenPair, config Fiel
 }
 
 // renderCheckboxField renders a checkbox group
-func renderCheckboxField(html *strings.Builder, pair ChoicesChosenPair, config FieldConfig, cssClass string, selectedIndices []int) error {
+func renderCheckboxField(html *strings.Builder, pair ChoicesChosenPair, config FieldConfig, cssClass, labelCssClass string, selectedIndices []int) error {
 	// Render group label first (if not disabled)
 	if !config.NoLabel {
 		labelText := generateLabel(config, pair.ChosenField.Name)
-		html.WriteString(fmt.Sprintf(`<fieldset><legend>%s</legend>`, escapeHTML(labelText)))
-		html.WriteString("\n")
+		html.WriteString("<fieldset><legend")
+		if labelCssClass != "" {
+			html.WriteString(fmt.Sprintf(` class="%s"`, labelCssClass))
+		}
+		html.WriteString(fmt.Sprintf(">%s</legend>\n", escapeHTML(labelText)))
 	}
 
 	for i := 0; i < pair.ChoicesValue.Len(); i++ {
@@ -754,7 +768,7 @@ func fieldNameToLabel(fieldName string) string {
 }
 
 // renderLabel generates a <label> element for a field if not disabled
-func renderLabel(html *strings.Builder, config FieldConfig, fieldName string) {
+func renderLabel(html *strings.Builder, config FieldConfig, fieldName string, cssClass string) {
 	if config.NoLabel {
 		return
 	}
@@ -764,13 +778,15 @@ func renderLabel(html *strings.Builder, config FieldConfig, fieldName string) {
 	if customID, ok := config.Attributes["id"]; ok {
 		fieldID = customID
 	}
-
-	html.WriteString(fmt.Sprintf(`<label for="%s">%s</label>`, escapeHTML(fieldID), escapeHTML(labelText)))
-	html.WriteString("\n")
+	html.WriteString(fmt.Sprintf(`<label for="%s"`, escapeHTML(fieldID)))
+	if cssClass != "" {
+		html.WriteString(fmt.Sprintf(` class="%s"`, cssClass))
+	}
+	html.WriteString(fmt.Sprintf(">%s</label>\n", escapeHTML(labelText)))
 }
 
 // renderHiddenField renders a hidden input field for any supported field type
-func renderHiddenField(html *strings.Builder, field reflect.StructField, fieldVal reflect.Value, config FieldConfig, cssClass string) error {
+func renderHiddenField(html *strings.Builder, field reflect.StructField, fieldVal reflect.Value, config FieldConfig) error {
 	// Hidden fields never render labels
 	html.WriteString(`<input type="hidden"`)
 	html.WriteString(fmt.Sprintf(` name="%s"`, config.Name))
@@ -819,11 +835,6 @@ func renderHiddenField(html *strings.Builder, field reflect.StructField, fieldVa
 		default:
 			return fmt.Errorf("vee: unsupported type for hidden field '%s': %s", field.Name, actualType.Kind())
 		}
-	}
-
-	// Add CSS class if provided
-	if cssClass != "" {
-		html.WriteString(fmt.Sprintf(` class="%s"`, escapeHTML(cssClass)))
 	}
 
 	// Add universal attributes (id is still useful, others may not be but we'll include them)

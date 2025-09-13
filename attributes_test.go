@@ -1,6 +1,10 @@
 package vee
 
 import (
+	"fmt"
+	"math/rand"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -280,5 +284,78 @@ func TestStringTypeOverrides(t *testing.T) {
 				t.Errorf("Render() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+const iterations = 1000
+
+var allOptions = [][]string{
+	{"placeholder", "testing"},
+	{"required", ""},
+	{"id", "abc"},
+	{"readonly", ""},
+	{"disabled", ""},
+}
+
+var optionCount = len(allOptions)
+
+func selectRandomOption(previous []int) (string, string, []int) {
+	found := false
+	var index int
+	for !found {
+		index = rand.Intn(optionCount - 1)
+		found = true
+		if slices.Contains(previous, index) {
+			found = false
+			break
+		}
+	}
+	return allOptions[index][0], allOptions[index][1], append(previous, index)
+}
+
+func buildExpected(config FieldConfig) string {
+	buf := &strings.Builder{}
+	if id, ok := config.Attributes["id"]; ok {
+		buf.WriteString(fmt.Sprintf(` id="%s"`, escapeHTML(id)))
+	} else {
+		buf.WriteString(fmt.Sprintf(` id="%s"`, escapeHTML(config.Name)))
+	}
+
+	// Add placeholder attribute
+	if placeholder, ok := config.Attributes["placeholder"]; ok {
+		buf.WriteString(fmt.Sprintf(` placeholder="%s"`, escapeHTML(placeholder)))
+	}
+
+	// Add boolean attributes (required, readonly, disabled)
+	if _, ok := config.Attributes["required"]; ok {
+		buf.WriteString(` required`)
+	}
+	if _, ok := config.Attributes["readonly"]; ok {
+		buf.WriteString(` readonly`)
+	}
+	if _, ok := config.Attributes["disabled"]; ok {
+		buf.WriteString(` disabled`)
+	}
+	return buf.String()
+}
+
+func TestUniversalAttributePermutations(t *testing.T) {
+	for i := range iterations {
+		config := FieldConfig{
+			Name:       "foo",
+			Attributes: make(map[string]string, 0),
+		}
+		var key, value string
+		previous := make([]int, 0)
+		for j := 0; j < 3; j++ {
+			key, value, previous = selectRandomOption(previous)
+			config.Attributes[key] = value
+		}
+		output := &strings.Builder{}
+		addUniversalAttributes(output, config)
+		expected := buildExpected(config)
+		if output.String() != expected {
+			t.Errorf("iteration %d failed. expected '%s', got '%s'", i, expected, output.String())
+		}
 	}
 }
